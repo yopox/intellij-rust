@@ -5,9 +5,12 @@
 
 package org.rust.ide.ssr
 
+import com.intellij.dupLocator.util.NodeFilter
 import com.intellij.psi.PsiElement
 import com.intellij.structuralsearch.impl.matcher.compiler.GlobalCompilingVisitor
+import com.intellij.structuralsearch.impl.matcher.handlers.SubstitutionHandler
 import com.intellij.structuralsearch.impl.matcher.handlers.TopLevelMatchingHandler
+import org.rust.lang.core.psi.RsPathExpr
 import org.rust.lang.core.psi.RsRecursiveVisitor
 
 // TODO: implement WordOptimizer and filters
@@ -22,8 +25,17 @@ class RsCompilingVisitor(private val myCompilingVisitor: GlobalCompilingVisitor)
         }
     }
 
+    private fun getHandler(element: PsiElement) = myCompilingVisitor.context.pattern.getHandler(element)
+
     override fun visitElement(element: PsiElement) {
         myCompilingVisitor.handle(element)
         super.visitElement(element)
+    }
+
+    override fun visitPathExpr(o: RsPathExpr) {
+        visitElement(o)
+        val handler = getHandler(o)
+        // accept all
+        if (handler is SubstitutionHandler) getHandler(o).filter = NodeFilter { it is PsiElement }
     }
 }

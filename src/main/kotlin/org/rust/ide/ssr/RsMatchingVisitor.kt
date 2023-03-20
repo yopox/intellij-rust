@@ -225,6 +225,33 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
             o.stringValue == litExpr.stringValue
     }
 
+    override fun visitExprStmt(o: RsExprStmt) {
+        val expr = getElement<RsExprStmt>() ?: return
+        matchingVisitor.result = match(o.expr, expr.expr)
+    }
+
+    override fun visitCallExpr(o: RsCallExpr) {
+        val call = getElement<RsCallExpr>() ?: return
+        matchingVisitor.result = match(o.expr, call.expr)
+            && match(o.valueArgumentList, call.valueArgumentList)
+    }
+
+    override fun visitValueArgumentList(o: RsValueArgumentList) {
+        val list = getElement<RsValueArgumentList>() ?: return
+        matchingVisitor.result = matchingVisitor.matchSequentially(o.exprList, list.exprList)
+    }
+
+    override fun visitPathExpr(o: RsPathExpr) {
+        val element = getElement<RsElement>() ?: return
+        if (getHandler(o) is SubstitutionHandler) {
+            matchingVisitor.result = matchTextOrVariable(o, element)
+        } else {
+            matchingVisitor.result = element is RsPathExpr
+                && match(o.path, element.path)
+                && matchOuterAttrList(o, element)
+        }
+    }
+
     private fun matchOuterAttrList(e1: RsOuterAttributeOwner, e2: RsOuterAttributeOwner): Boolean {
         return matchingVisitor.matchInAnyOrder(e1.outerAttrList, e2.outerAttrList)
     }
