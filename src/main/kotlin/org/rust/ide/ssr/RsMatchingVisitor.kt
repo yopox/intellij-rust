@@ -184,6 +184,13 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
             && matchOuterAttrList(o, cont)
     }
 
+    override fun visitBreakExpr(o: RsBreakExpr) {
+        val br = getElement<RsBreakExpr>() ?: return
+        matchingVisitor.result = match(o.label, br.label)
+            && matchOuterAttrList(o, br)
+            && match(o.expr, br.expr)
+    }
+
     override fun visitLabel(o: RsLabel) {
         val label = getElement<RsLabel>() ?: return
         matchingVisitor.result = matchQuoteIdentifier(o.quoteIdentifier, label.quoteIdentifier)
