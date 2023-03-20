@@ -83,6 +83,14 @@ class RsSSRTypeTest : RsSSRTestBase() {
         struct S3(&u32);
     """, """struct '_(&\''_ u32)""")
 
+    fun `test Path RsLifetime QUOTE_IDENTIFIER regex`() = doTest(
+        """
+        /*warning*/struct S1<'foo>(&'foo u32);/*warning**/
+        /*warning*/struct S2<'boo>(&'boo u32);/*warning**/
+        struct S3<'bar>(&'bar u32);
+        struct S4(&u32);
+    """, """struct '_<'_>(&\''_:*[regex(.oo)] u32)""")
+
     fun `test Path RsTypeArgumentList`() = doTest("""
         /*warning*/struct S1(x<T1>);/*warning**/
         struct S2(x);

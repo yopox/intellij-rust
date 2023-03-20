@@ -13,6 +13,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.elementType
 import com.intellij.structuralsearch.StructuralSearchProfile
 import com.intellij.structuralsearch.impl.matcher.CompiledPattern
 import com.intellij.structuralsearch.impl.matcher.GlobalMatchingVisitor
@@ -24,7 +25,7 @@ import org.rust.ide.template.RsContextType
 import org.rust.lang.RsFileType
 import org.rust.lang.RsLanguage
 import org.rust.lang.core.psi.RsElementTypes.IDENTIFIER
-import org.rust.lang.core.psi.RsLifetime
+import org.rust.lang.core.psi.RsElementTypes.QUOTE_IDENTIFIER
 import org.rust.lang.core.psi.RsPsiFactory
 
 class RsStructuralSearchProfile : StructuralSearchProfile() {
@@ -41,7 +42,9 @@ class RsStructuralSearchProfile : StructuralSearchProfile() {
 
     override fun getPredefinedTemplates(): Array<Configuration> = RsPredefinedConfigurations.createPredefinedTemplates()
 
-    override fun isIdentifier(element: PsiElement?): Boolean = element?.node?.elementType == IDENTIFIER
+    override fun isIdentifier(element: PsiElement?): Boolean = element?.node?.elementType?.let {
+        it == IDENTIFIER || it == QUOTE_IDENTIFIER
+    } ?: false
 
     override fun createCompiledPattern(): CompiledPattern = RsCompiledPattern()
 
@@ -74,14 +77,15 @@ private class RsCompiledPattern : CompiledPattern() {
     override fun isTypedVar(str: String): Boolean = when {
         str.isEmpty() -> false
         str[0] == '@' -> str.drop(1).startsWith(RsStructuralSearchProfile.TYPED_VAR_PREFIX)
+        str[0] == '\'' -> str.drop(1).startsWith(RsStructuralSearchProfile.TYPED_VAR_PREFIX)
         else -> str.startsWith(RsStructuralSearchProfile.TYPED_VAR_PREFIX)
     }
 
     override fun getTypedVarString(element: PsiElement): String {
         val typedVarString = super.getTypedVarString(element)
         // TODO: implement lifetime identifier properly
-        val modifiedString = when (element) {
-            is RsLifetime -> typedVarString.drop(1)
+        val modifiedString = when {
+            element.elementType == QUOTE_IDENTIFIER -> typedVarString.drop(1)
             else -> typedVarString
         }
         return modifiedString.removePrefix("@")

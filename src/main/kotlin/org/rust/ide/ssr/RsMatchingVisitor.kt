@@ -16,11 +16,11 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
     private fun getHandler(element: PsiElement): MatchingHandler =
         matchingVisitor.matchContext.pattern.getHandler(element)
 
-    private fun matchTextOrVariable(templateElement: PsiElement?, treeElement: PsiElement?): Boolean {
+    private fun matchTextOrVariable(templateElement: PsiElement?, treeElement: PsiElement?, start: Int = 0, end: Int = -1): Boolean {
         if (templateElement == null) return true
         if (treeElement == null) return false
         return when (val handler = getHandler(templateElement)) {
-            is SubstitutionHandler -> handler.validate(treeElement, matchingVisitor.matchContext)
+            is SubstitutionHandler -> handler.validate(treeElement, start, end, matchingVisitor.matchContext)
             else -> matchingVisitor.matchText(templateElement, treeElement)
         }
     }
@@ -50,10 +50,7 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
 
     override fun visitTypeParameterList(o: RsTypeParameterList) {
         val parameters = getElement<RsTypeParameterList>() ?: return
-        matchingVisitor.result =
-            matchingVisitor.matchInAnyOrder(o.typeParameterList, parameters.typeParameterList) &&
-                matchingVisitor.matchInAnyOrder(o.lifetimeParameterList, parameters.lifetimeParameterList) &&
-                matchingVisitor.matchInAnyOrder(o.constParameterList, parameters.constParameterList)
+        matchingVisitor.result = matchingVisitor.matchInAnyOrder(o.children, parameters.children)
     }
 
     override fun visitWhereClause(o: RsWhereClause) {
@@ -68,12 +65,14 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
     }
 
     override fun visitTypeParameter(o: RsTypeParameter) {
-        val parameter = getElement<RsTypeParameter>() ?: return
-        matchingVisitor.result =
-            matchOuterAttrList(o, parameter) &&
+        val parameter = getElement<RsGenericParameter>() ?: return
+        matchingVisitor.result = when (parameter) {
+            !is RsTypeParameter -> matchTextOrVariable(o, parameter)
+            else -> matchOuterAttrList(o, parameter) &&
                 match(o.typeParamBounds, parameter.typeParamBounds) &&
                 match(o.typeReference, parameter.typeReference) &&
                 matchIdentifier(o.identifier, parameter.identifier)
+        }
     }
 
     override fun visitTypeArgumentList(o: RsTypeArgumentList) {
@@ -171,12 +170,31 @@ class RsMatchingVisitor(private val matchingVisitor: GlobalMatchingVisitor) : Rs
 
     override fun visitLifetime(o: RsLifetime) {
         val lifetime = getElement<RsLifetime>() ?: return
-        matchingVisitor.result = matchTextOrVariable(o, lifetime)
+        matchingVisitor.result = matchQuoteIdentifier(o.quoteIdentifier, lifetime.quoteIdentifier)
     }
 
     override fun visitVis(o: RsVis) {
         val vis = getElement<RsVis>() ?: return
         matchingVisitor.result = matchTextOrVariable(o, vis)
+    }
+
+    override fun visitContExpr(o: RsContExpr) {
+        val cont = getElement<RsContExpr>() ?: return
+        matchingVisitor.result = match(o.label, cont.label)
+            && matchOuterAttrList(o, cont)
+    }
+
+    override fun visitLabel(o: RsLabel) {
+        val label = getElement<RsLabel>() ?: return
+        matchingVisitor.result = matchQuoteIdentifier(o.quoteIdentifier, label.quoteIdentifier)
+    }
+
+    private fun matchQuoteIdentifier(templateQuote: PsiElement?, treeQuote: PsiElement?): Boolean {
+        if (templateQuote == null) return true
+        return when (getHandler(templateQuote)) {
+            is SubstitutionHandler -> matchTextOrVariable(templateQuote, treeQuote, 1)
+            else -> matchTextOrVariable(templateQuote, treeQuote)
+        }
     }
 
     override fun visitInnerAttr(o: RsInnerAttr) {

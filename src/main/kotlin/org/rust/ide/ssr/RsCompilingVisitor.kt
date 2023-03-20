@@ -12,6 +12,8 @@ import com.intellij.structuralsearch.impl.matcher.handlers.SubstitutionHandler
 import com.intellij.structuralsearch.impl.matcher.handlers.TopLevelMatchingHandler
 import org.rust.lang.core.psi.RsPathExpr
 import org.rust.lang.core.psi.RsRecursiveVisitor
+import org.rust.lang.core.psi.RsTypeParameter
+import org.rust.lang.core.psi.ext.RsGenericParameter
 
 // TODO: implement WordOptimizer and filters
 class RsCompilingVisitor(private val myCompilingVisitor: GlobalCompilingVisitor) : RsRecursiveVisitor() {
@@ -37,5 +39,11 @@ class RsCompilingVisitor(private val myCompilingVisitor: GlobalCompilingVisitor)
         val handler = getHandler(o)
         // accept all
         if (handler is SubstitutionHandler) getHandler(o).filter = NodeFilter { it is PsiElement }
+    }
+
+    override fun visitTypeParameter(o: RsTypeParameter) {
+        visitElement(o)
+        val handler = getHandler(o)
+        if (handler is SubstitutionHandler) getHandler(o).filter = NodeFilter { it is RsGenericParameter }
     }
 }
